@@ -27,12 +27,18 @@ type urlDescription struct {
 	Payload		string `json:"payload,omitempty"`
 }
 
-type addBodyBlock struct {
-	Message string
+type balanceResponse struct {
+	Address string	`json:"address"`
+	Balance int		`json:"balance"`
 }
 
 type errorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
+}
+
+type addTxPayload struct {
+	To string
+	Amount int
 }
 
 func documentation(rw http.ResponseWriter, r *http.Request){
@@ -63,6 +69,11 @@ func documentation(rw http.ResponseWriter, r *http.Request){
 			Method: "GET",
 			Description: "see a block",
 		},
+		{
+			URL: url("/balance/{address}"),
+			Method: "GET",
+			Description: "Get TxOuts for an Address",
+		},
 	}
 	json.NewEncoder(rw).Encode(data)
 }
@@ -72,9 +83,7 @@ func blocks(rw http.ResponseWriter, r *http.Request){
 	case "GET":
 		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
 	case "POST":
-		var addBlockBody addBodyBlock
-		utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
-		blockchain.Blockchain().AddBlock(addBlockBody.Message)
+		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -102,6 +111,32 @@ func status(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(blockchain.Blockchain())
 }
 
+func balance(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	address := vars["address"]
+	total := r.URL.Query().Get("total")
+	switch total {
+	case "true":
+		amount := blockchain.Blockchain().BalanceByAddress(address)
+		utils.HandleErr(json.NewEncoder(rw).Encode(balanceResponse{address, amount}))
+	default:
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().TxOutsByAddress(address)))
+	}
+}
+
+func mempool(rw http.ResponseWriter, r *http.Request) {
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+}
+
+func transactions(rw http.ResponseWriter, r *http.Request) {
+	var payload addTxPayload
+	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
+	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+	if err != nil {
+		json.NewEncoder(rw).Encode(errorResponse{"NOT ENOUGH FUNDS"})
+	}
+	rw.WriteHeader(http.StatusCreated)
+}
 
 func Start(aPort int){
 	router := mux.NewRouter()
@@ -111,6 +146,9 @@ func Start(aPort int){
 	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash:[a-f0-9]+}", block).Methods("GET")
+	router.HandleFunc("/balance/{address}", balance).Methods("GET")
+	router.HandleFunc("/mempool", mempool)
+	router.HandleFunc("/transactions", transactions).Methods("POST")
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
