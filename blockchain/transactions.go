@@ -29,8 +29,9 @@ func (t *Tx) getId(){
 }
 
 type TxIn struct {
+	TxID 	string	`json:"txId"`
+	Index	int		`json:"index"`
 	Owner 	string	`json:"owner"`
-	Amount	int		`json:"amount"`
 }
 
 type TxOut struct {
@@ -38,9 +39,25 @@ type TxOut struct {
 	Amount	int 	`json:"amount"`
 }
 
+type UTxOut struct {
+	TxID   string
+	Index  int
+	Amount int
+}
+
+func isOnMempool(uTxOut *UTxOut) bool {
+	exists := false
+	for _, tx := range Mempool.Txs{
+		for _, input := range tx.TxIns {
+			exists = input.TxID == uTxOut.TxID && input.Index == uTxOut.Index 
+		}
+	}
+	return exists
+}
+
 func makeCoinbaseTx(address string) *Tx {
 	txIns := []*TxIn{
-		{"COINBASE", minerReward},
+		{"", -1,  "COINBASE"},
 	}
 	txOuts := []*TxOut{
 		{address, minerReward},
@@ -59,20 +76,19 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 	if Blockchain().BalanceByAddress(from) < amount {
 		return nil, errors.New("NOT ENOUGH MONEY")
 	}
-	var txIns []*TxIn
 	var txOuts []*TxOut
+	var txIns []*TxIn
 	total := 0
-	oldTxOuts := Blockchain().TxOutsByAddress(from)
-	for _, txOut := range oldTxOuts {
+	uTxOuts := Blockchain().UTxOutsByAddress(from)
+	for _, uTxOut := range uTxOuts {
 		if total > amount {
 			break;
 		}
-		txIn := &TxIn{txOut.Owner, txOut.Amount}
+		txIn := &TxIn{uTxOut.TxID, uTxOut.Index, from}
 		txIns = append(txIns, txIn)
-		total += txIn.Amount
+		total += uTxOut.Amount
 	}
-	change := total - amount
-	if change != 0 {
+	if change := total - amount; change != 0 {
 		changeTxOut := &TxOut{from, change}
 		txOuts = append(txOuts, changeTxOut)
 	}
@@ -89,6 +105,7 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 }
 
 func (m *mempool) AddTx(to string, amount int) error {
+	// 나중에는 지갑을 순환하며 amount 를 만족하는 값이 나올때까지 loop 를 돌릴 것으로 추정
 	tx, err := makeTx("obm", to, amount)
 	if err != nil {
 		return err

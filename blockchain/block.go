@@ -11,13 +11,13 @@ import (
 
 
 type Block struct {
-	Hash 		 string	`json:"hash"`
-	PrevHash 	 string	`json:"prevHas,omitempty"`
+	Hash 		 string		`json:"hash"`
+	PrevHash 	 string		`json:"prevHas,omitempty"`
 	Height 		 int		`json:"height"`
-	Difficulty   int 	`json:"difficulty"`
+	Difficulty   int 		`json:"difficulty"`
 	Nonce 		 int		`json:"nonce"`
 	Timestamp	 int		`json:"timestamp"`
-	Transactions []*Tx	`json:"transactions"`
+	Transactions []*Tx		`json:"transactions"`
 }
 
 func (b *Block) persist() {
