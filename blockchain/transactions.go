@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ohbyeongmin/obmcoin/utils"
+	"github.com/ohbyeongmin/obmcoin/wallet"
 )
 
 const (
@@ -24,19 +25,15 @@ type Tx struct {
 	TxOuts		[]*TxOut	`json:"txOuts"`	
 }
 
-func (t *Tx) getId(){
-	t.Id = utils.Hash(t)
-}
-
 type TxIn struct {
-	TxID 	string	`json:"txId"`
-	Index	int		`json:"index"`
-	Owner 	string	`json:"owner"`
+	TxID 		string	`json:"txId"`
+	Index		int		`json:"index"`
+	Signature 	string	`json:"signature"`
 }
 
 type TxOut struct {
-	Owner 	string	`json:"owner"`	
-	Amount	int 	`json:"amount"`
+	Address 	string	`json:"address"`	
+	Amount		int 	`json:"amount"`
 }
 
 type UTxOut struct {
@@ -45,11 +42,42 @@ type UTxOut struct {
 	Amount int
 }
 
+func (t *Tx) getId(){
+	t.Id = utils.Hash(t)
+}
+
+func (t *Tx) sign() {
+	for _, txIn := range t.TxIns {
+		txIn.Signature = wallet.Sign(t.Id, wallet.Wallet())
+	}
+}
+
+func validate(tx *Tx) bool {
+	valid := true
+	for _, txIn := range tx.TxIns {
+		prevTx := FindTx(Blockchain(), txIn.TxID)
+		if prevTx == nil {
+			valid = false
+			break
+		}
+		address := prevTx.TxOuts[txIn.Index].Address
+		valid = wallet.Verify(txIn.Signature, tx.Id, address)
+		if !valid {
+			break
+		}
+	}
+	return valid
+}
+
 func isOnMempool(uTxOut *UTxOut) bool {
 	exists := false
+	Outer: 
 	for _, tx := range Mempool.Txs{
 		for _, input := range tx.TxIns {
-			exists = input.TxID == uTxOut.TxID && input.Index == uTxOut.Index 
+			if input.TxID == uTxOut.TxID && input.Index == uTxOut.Index {
+				exists = true
+				break Outer
+			}
 		}
 	}
 	return exists
@@ -72,16 +100,19 @@ func makeCoinbaseTx(address string) *Tx {
 	return &tx
 }
 
+var ErrorNoMoney = errors.New("NOT ENOUGH MONEY")
+var ErrorNotValid = errors.New("TX INVALID")
+
 func makeTx(from, to string, amount int) (*Tx, error) {
-	if Blockchain().BalanceByAddress(from) < amount {
-		return nil, errors.New("NOT ENOUGH MONEY")
+	if BalanceByAddress(from, Blockchain()) < amount {
+		return nil, ErrorNoMoney
 	}
 	var txOuts []*TxOut
 	var txIns []*TxIn
 	total := 0
-	uTxOuts := Blockchain().UTxOutsByAddress(from)
+	uTxOuts := UTxOutsByAddress(from, Blockchain())
 	for _, uTxOut := range uTxOuts {
-		if total > amount {
+		if total >= amount {
 			break;
 		}
 		txIn := &TxIn{uTxOut.TxID, uTxOut.Index, from}
@@ -101,12 +132,17 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 		TxOuts: txOuts,
 	}
 	tx.getId()
+	tx.sign()
+	valid := validate(tx)
+	if !valid {
+		return nil, ErrorNotValid
+	}
 	return tx, nil
 }
 
 func (m *mempool) AddTx(to string, amount int) error {
 	// 나중에는 지갑을 순환하며 amount 를 만족하는 값이 나올때까지 loop 를 돌릴 것으로 추정
-	tx, err := makeTx("obm", to, amount)
+	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 	if err != nil {
 		return err
 	}
@@ -115,7 +151,7 @@ func (m *mempool) AddTx(to string, amount int) error {
 }
 
 func (m *mempool) TxToConfirm() []*Tx {
-	coinbase := makeCoinbaseTx("obm")
+	coinbase := makeCoinbaseTx(wallet.Wallet().Address)
 	txs := m.Txs
 	txs =append(txs, coinbase)
 	m.Txs = nil

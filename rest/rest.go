@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ohbyeongmin/obmcoin/blockchain"
 	"github.com/ohbyeongmin/obmcoin/utils"
+	"github.com/ohbyeongmin/obmcoin/wallet"
 )
 
 var port string
@@ -30,6 +31,10 @@ type urlDescription struct {
 type balanceResponse struct {
 	Address string	`json:"address"`
 	Balance int		`json:"balance"`
+}
+
+type myWalletResponse struct {
+	Address string `json:"address"`
 }
 
 type errorResponse struct {
@@ -81,7 +86,7 @@ func documentation(rw http.ResponseWriter, r *http.Request){
 func blocks(rw http.ResponseWriter, r *http.Request){
 	switch r.Method {
 	case "GET":
-		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
+		json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.Blockchain()))
 	case "POST":
 		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
@@ -117,10 +122,10 @@ func balance(rw http.ResponseWriter, r *http.Request) {
 	total := r.URL.Query().Get("total")
 	switch total {
 	case "true":
-		amount := blockchain.Blockchain().BalanceByAddress(address)
+		amount := blockchain.BalanceByAddress(address, blockchain.Blockchain())
 		utils.HandleErr(json.NewEncoder(rw).Encode(balanceResponse{address, amount}))
 	default:
-		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().UTxOutsByAddress(address)))
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.UTxOutsByAddress(address, blockchain.Blockchain())))
 	}
 }
 
@@ -133,9 +138,16 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
 	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
 	if err != nil {
-		json.NewEncoder(rw).Encode(errorResponse{"NOT ENOUGH FUNDS"})
+		rw.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(rw).Encode(errorResponse{err.Error()})
+		return
 	}
 	rw.WriteHeader(http.StatusCreated)
+}
+
+func myWallet(rw http.ResponseWriter, r *http.Request) {
+	address := wallet.Wallet().Address
+	json.NewEncoder(rw).Encode(myWalletResponse{Address: address})
 }
 
 func Start(aPort int){
@@ -147,7 +159,8 @@ func Start(aPort int){
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash:[a-f0-9]+}", block).Methods("GET")
 	router.HandleFunc("/balance/{address}", balance).Methods("GET")
-	router.HandleFunc("/mempool", mempool)
+	router.HandleFunc("/mempool", mempool).Methods("GET")
+	router.HandleFunc("/wallet", myWallet).Methods("GET")
 	router.HandleFunc("/transactions", transactions).Methods("POST")
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))

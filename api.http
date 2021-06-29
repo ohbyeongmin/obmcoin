@@ -9,6 +9,9 @@ http://localhost:4000/status
 http://localhost:4000/blocks
 
 ###
+http://localhost:4000/wallet
+
+###
 
 POST http://localhost:4000/blocks
 
@@ -18,7 +21,7 @@ POST http://localhost:4000/blocks
 
 ###
 
-http://localhost:4000/balance/solhui?total=true
+http://localhost:4000/balance/5f019863c26769e62b30aa846648218bd212670d223cfb15b6c72d4e5528b485feb45e944035b24f5886f992a6036ee7466ac58a6033ad5e54d8e5d13a5c1ffa
 
 
 ###
@@ -30,5 +33,5 @@ POST http://localhost:4000/transactions
 
 {
     "to":"solhui",
-    "amount":20
+    "amount": 50
 }
