@@ -14,11 +14,8 @@ const (
 	allowedRange		int = 2
 )
 
-// blockchain 의 구조체
 type blockchain struct {
-	// 가장 최근 만들어진 블록의 해쉬 값이 저장 된다.
 	NewestHash string `json:"newestHash"`
-	// 지금 까지 만든 블록의 Height 값이 저장 된다.
 	Height int 		  `json:"height"`	
 	CurrentDifficulty int 	`json:"currentDifficulty"`
 }
@@ -78,7 +75,7 @@ func Txs(b *blockchain) []*Tx {
 
 func FindTx(b *blockchain, targetID string) *Tx {
 	for _, tx := range Txs(b){
-		if tx.Id == targetID {
+		if tx.ID == targetID {
 			return tx
 		}
 	} 
@@ -129,8 +126,8 @@ func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
 			}
 			for index, output := range tx.TxOuts {
 				if output.Address == address {
-					if _, ok := creatorTxs[tx.Id]; !ok {
-						uTxOut := &UTxOut{tx.Id, index, output.Amount}
+					if _, ok := creatorTxs[tx.ID]; !ok {
+						uTxOut := &UTxOut{tx.ID, index, output.Amount}
 						if !isOnMempool(uTxOut) {
 							uTxOuts = append(uTxOuts, uTxOut)
 						}

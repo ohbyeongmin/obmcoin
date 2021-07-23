@@ -19,7 +19,7 @@ type mempool struct {
 var Mempool *mempool = &mempool{}
 
 type Tx struct {
-	Id			string		`json:"id"`
+	ID			string		`json:"id"`
 	Timestamp 	int			`json:"timestamp"`
 	TxIns 		[]*TxIn		`json:"txIns"`
 	TxOuts		[]*TxOut	`json:"txOuts"`	
@@ -43,12 +43,12 @@ type UTxOut struct {
 }
 
 func (t *Tx) getId(){
-	t.Id = utils.Hash(t)
+	t.ID = utils.Hash(t)
 }
 
 func (t *Tx) sign() {
 	for _, txIn := range t.TxIns {
-		txIn.Signature = wallet.Sign(t.Id, wallet.Wallet())
+		txIn.Signature = wallet.Sign(t.ID, wallet.Wallet())
 	}
 }
 
@@ -61,7 +61,7 @@ func validate(tx *Tx) bool {
 			break
 		}
 		address := prevTx.TxOuts[txIn.Index].Address
-		valid = wallet.Verify(txIn.Signature, tx.Id, address)
+		valid = wallet.Verify(txIn.Signature, tx.ID, address)
 		if !valid {
 			break
 		}
@@ -91,7 +91,7 @@ func makeCoinbaseTx(address string) *Tx {
 		{address, minerReward},
 	}
 	tx := Tx{
-		Id: "",
+		ID: "",
 		Timestamp: int(time.Now().Unix()),
 		TxIns: txIns,
 		TxOuts: txOuts,
@@ -115,7 +115,7 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 		if total >= amount {
 			break;
 		}
-		txIn := &TxIn{uTxOut.TxID, uTxOut.Index, from}
+		txIn := &TxIn{uTxOut.TxID, uTxOut.Index, ""}
 		txIns = append(txIns, txIn)
 		total += uTxOut.Amount
 	}
@@ -126,7 +126,7 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 	txOut := &TxOut{to, amount}
 	txOuts = append(txOuts, txOut)
 	tx := &Tx{
-		Id: "",
+		ID: "",
 		Timestamp: int(time.Now().Unix()),
 		TxIns: txIns,
 		TxOuts: txOuts,
@@ -141,7 +141,6 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 }
 
 func (m *mempool) AddTx(to string, amount int) error {
-	// 나중에는 지갑을 순환하며 amount 를 만족하는 값이 나올때까지 loop 를 돌릴 것으로 추정
 	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 	if err != nil {
 		return err
