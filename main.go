@@ -5,8 +5,8 @@ import (
 	"github.com/ohbyeongmin/obmcoin/db"
 )
 
-func main(){
+func main() {
 	defer db.Close()
+	db.InitDB()
 	cli.Start()
 }
-

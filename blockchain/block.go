@@ -5,33 +5,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ohbyeongmin/obmcoin/db"
 	"github.com/ohbyeongmin/obmcoin/utils"
 )
 
-
 type Block struct {
-	Hash 		 string		`json:"hash"`
-	PrevHash 	 string		`json:"prevHas,omitempty"`
-	Height 		 int		`json:"height"`
-	Difficulty   int 		`json:"difficulty"`
-	Nonce 		 int		`json:"nonce"`
-	Timestamp	 int		`json:"timestamp"`
-	Transactions []*Tx		`json:"transactions"`
+	Hash         string `json:"hash"`
+	PrevHash     string `json:"prevHas,omitempty"`
+	Height       int    `json:"height"`
+	Difficulty   int    `json:"difficulty"`
+	Nonce        int    `json:"nonce"`
+	Timestamp    int    `json:"timestamp"`
+	Transactions []*Tx  `json:"transactions"`
 }
 
 func persistBlock(b *Block) {
-	db.SaveBlock(b.Hash, utils.ToBytes(b))
+	dbStorage.SaveBlock(b.Hash, utils.ToBytes(b))
 }
 
 var ErrNotFound = errors.New("block not found")
 
-func (b *Block) restore(data []byte){
+func (b *Block) restore(data []byte) {
 	utils.FromBytes(b, data)
 }
 
 func FindBlock(hash string) (*Block, error) {
-	blockBytes := db.Block(hash)
+	blockBytes := dbStorage.FindBlock(hash)
 	if blockBytes == nil {
 		return nil, ErrNotFound
 	}
@@ -42,28 +40,28 @@ func FindBlock(hash string) (*Block, error) {
 
 func (b *Block) mine() {
 	target := strings.Repeat("0", b.Difficulty)
-	for{
+	for {
 		b.Timestamp = int(time.Now().Unix())
 		hash := utils.Hash(b)
 		if strings.HasPrefix(hash, target) {
 			b.Hash = hash
-			break;
+			break
 		} else {
 			b.Nonce++
 		}
 	}
 }
 
-func createBlock(prevHash string, height int, diff int) *Block{
+func createBlock(prevHash string, height int, diff int) *Block {
 	block := &Block{
-		Hash: "",
-		PrevHash: prevHash,
-		Height: height,
+		Hash:       "",
+		PrevHash:   prevHash,
+		Height:     height,
 		Difficulty: diff,
-		Nonce: 0,
+		Nonce:      0,
 	}
-	block.mine()
 	block.Transactions = Mempool().TxToConfirm()
+	block.mine()
 	persistBlock(block)
 	return block
 }

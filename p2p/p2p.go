@@ -16,7 +16,7 @@ func Upgrade(rw http.ResponseWriter, r *http.Request) {
 	openPort := r.URL.Query().Get("openPort")
 	ip := utils.Splitter(r.RemoteAddr, ":", 0)
 	upgrader.CheckOrigin = func(r *http.Request) bool {
-			return openPort != "" && ip != ""
+		return openPort != "" && ip != ""
 	}
 	fmt.Printf("%s wants an upgrade\n", openPort)
 	conn, err := upgrader.Upgrade(rw, r, nil)
@@ -32,7 +32,7 @@ func AddPeer(address, port, openPort string, broadcast bool) {
 	if broadcast {
 		broadcastNewPeer(p)
 		return
-	} 
+	}
 	sendNewestBlock(p)
 }
 
@@ -42,7 +42,7 @@ func BroadcastNewBlock(b *blockchain.Block) {
 	}
 }
 
-func BroadcastNewTx(tx *blockchain.Tx){
+func BroadcastNewTx(tx *blockchain.Tx) {
 	for _, p := range Peers.v {
 		notifyNewTx(tx, p)
 	}
@@ -50,7 +50,7 @@ func BroadcastNewTx(tx *blockchain.Tx){
 
 func broadcastNewPeer(newPeer *peer) {
 	for key, p := range Peers.v {
-		if key != newPeer.key{
+		if key != newPeer.key {
 			payload := fmt.Sprintf("%s:%s", newPeer.key, p.port)
 			notifyNewPeer(payload, p)
 		}

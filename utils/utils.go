@@ -1,3 +1,4 @@
+// utils 는 application 전역에서 사용되는 function들을 포함한다.
 package utils
 
 import (
@@ -10,7 +11,7 @@ import (
 	"strings"
 )
 
-func HandleErr(err error){
+func HandleErr(err error) {
 	if err != nil {
 		log.Panic(err)
 	}
@@ -23,10 +24,11 @@ func ToBytes(i interface{}) []byte {
 	return aBuffer.Bytes()
 }
 
+// FromBytes 는 인터페이스와 데이터를 가져와서 데이터를 Decode 한 후 인터페이스에 전달 한다.
 func FromBytes(i interface{}, data []byte) {
 	decoder := gob.NewDecoder(bytes.NewReader(data))
 	HandleErr(decoder.Decode(i))
-} 
+}
 
 func Hash(i interface{}) string {
 	s := fmt.Sprintf("%v", i)
@@ -36,9 +38,9 @@ func Hash(i interface{}) string {
 
 func Splitter(s string, sep string, i int) string {
 	r := strings.Split(s, sep)
-	if len(r) - 1 < i {
+	if len(r)-1 < i {
 		return ""
-	} 
+	}
 	return r[i]
 }
 

@@ -10,23 +10,32 @@ import (
 )
 
 const (
-	defaultDifficulty 	int = 2
-	difficultyInterval 	int = 5
-	blockInterval 		int = 2
-	allowedRange		int = 2
+	defaultDifficulty  int = 2
+	difficultyInterval int = 5
+	blockInterval      int = 2
+	allowedRange       int = 2
 )
 
 type blockchain struct {
-	NewestHash 			string `json:"newestHash"`
-	Height 				int 		  `json:"height"`	
-	CurrentDifficulty 	int 	`json:"currentDifficulty"`
-	m 					sync.Mutex
+	NewestHash        string `json:"newestHash"`
+	Height            int    `json:"height"`
+	CurrentDifficulty int    `json:"currentDifficulty"`
+	m                 sync.Mutex
+}
+
+type storage interface {
+	FindBlock(string) []byte
+	SaveBlock(string, []byte)
+	SaveChain([]byte)
+	LoadChain() []byte
+	DeleteAllBlocks()
 }
 
 var b *blockchain
 var once sync.Once
+var dbStorage storage = db.DB{}
 
-func (b *blockchain) restore(data []byte){
+func (b *blockchain) restore(data []byte) {
 	utils.FromBytes(b, data)
 }
 
@@ -44,12 +53,12 @@ func Blockchain() *blockchain {
 		b = &blockchain{
 			Height: 0,
 		}
-		checkpoint := db.Checkpoint()
+		checkpoint := dbStorage.LoadChain()
 		if checkpoint == nil {
 			b.AddBlock()
 		} else {
 			b.restore(checkpoint)
-		}	
+		}
 	})
 	return b
 }
@@ -73,26 +82,26 @@ func Blocks(b *blockchain) []*Block {
 
 func Txs(b *blockchain) []*Tx {
 	var txs []*Tx
-	for _, block := range Blocks(b){
+	for _, block := range Blocks(b) {
 		txs = append(txs, block.Transactions...)
 	}
 	return txs
 }
 
 func FindTx(b *blockchain, targetID string) *Tx {
-	for _, tx := range Txs(b){
+	for _, tx := range Txs(b) {
 		if tx.ID == targetID {
 			return tx
 		}
-	} 
+	}
 	return nil
 }
 
 func recalculateDifficulty(b *blockchain) int {
 	allBlocks := Blocks(b)
 	newestBlock := allBlocks[0]
-	lastRecalculatedBlock := allBlocks[difficultyInterval - 1]
-	actualTime := (newestBlock.Timestamp/60) - (lastRecalculatedBlock.Timestamp/60)
+	lastRecalculatedBlock := allBlocks[difficultyInterval-1]
+	actualTime := (newestBlock.Timestamp / 60) - (lastRecalculatedBlock.Timestamp / 60)
 	expectedTime := difficultyInterval * blockInterval
 	if actualTime <= (expectedTime - allowedRange) {
 		return b.CurrentDifficulty + 1
@@ -106,7 +115,7 @@ func recalculateDifficulty(b *blockchain) int {
 func getDifficulty(b *blockchain) int {
 	if b.Height == 0 {
 		return defaultDifficulty
-	} else if b.Height % difficultyInterval == 0 {
+	} else if b.Height%difficultyInterval == 0 {
 		return recalculateDifficulty(b)
 	} else {
 		return b.CurrentDifficulty
@@ -114,7 +123,7 @@ func getDifficulty(b *blockchain) int {
 }
 
 func persistBlockchain(b *blockchain) {
-	db.SaveCheckpoint(utils.ToBytes(b))
+	dbStorage.SaveChain(utils.ToBytes(b))
 }
 
 func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
@@ -123,7 +132,7 @@ func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
 	for _, block := range Blocks(b) {
 		for _, tx := range block.Transactions {
 			for _, input := range tx.TxIns {
-				if input.Signature == "COINBASE"{
+				if input.Signature == "COINBASE" {
 					break
 				}
 				if FindTx(b, input.TxID).TxOuts[input.Index].Address == address {
@@ -154,20 +163,20 @@ func BalanceByAddress(address string, b *blockchain) int {
 	return amount
 }
 
-func Status(b *blockchain, rw http.ResponseWriter){
+func Status(b *blockchain, rw http.ResponseWriter) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	utils.HandleErr(json.NewEncoder(rw).Encode(Blockchain()))
-} 
+}
 
-func (b *blockchain) Replace(newBlocks []*Block){
+func (b *blockchain) Replace(newBlocks []*Block) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	b.CurrentDifficulty = newBlocks[0].Difficulty
 	b.Height = len(newBlocks)
 	b.NewestHash = newBlocks[0].Hash
 	persistBlockchain(b)
-	db.EmptyBlocks()
+	dbStorage.DeleteAllBlocks()
 	for _, block := range newBlocks {
 		persistBlock(block)
 	}
@@ -194,5 +203,3 @@ func (b *blockchain) AddPeerBlock(newBlock *Block) {
 	}
 
 }
-
-

@@ -14,14 +14,14 @@ const (
 )
 
 type mempool struct {
-	Txs 	map[string]*Tx
-	m 		sync.Mutex
+	Txs map[string]*Tx
+	m   sync.Mutex
 }
 
 var m *mempool
 var memOnce sync.Once
 
-func Mempool() *mempool{
+func Mempool() *mempool {
 	memOnce.Do(func() {
 		m = &mempool{
 			Txs: make(map[string]*Tx),
@@ -31,21 +31,21 @@ func Mempool() *mempool{
 }
 
 type Tx struct {
-	ID			string		`json:"id"`
-	Timestamp 	int			`json:"timestamp"`
-	TxIns 		[]*TxIn		`json:"txIns"`
-	TxOuts		[]*TxOut	`json:"txOuts"`	
+	ID        string   `json:"id"`
+	Timestamp int      `json:"timestamp"`
+	TxIns     []*TxIn  `json:"txIns"`
+	TxOuts    []*TxOut `json:"txOuts"`
 }
 
 type TxIn struct {
-	TxID 		string	`json:"txId"`
-	Index		int		`json:"index"`
-	Signature 	string	`json:"signature"`
+	TxID      string `json:"txId"`
+	Index     int    `json:"index"`
+	Signature string `json:"signature"`
 }
 
 type TxOut struct {
-	Address 	string	`json:"address"`	
-	Amount		int 	`json:"amount"`
+	Address string `json:"address"`
+	Amount  int    `json:"amount"`
 }
 
 type UTxOut struct {
@@ -54,7 +54,7 @@ type UTxOut struct {
 	Amount int
 }
 
-func (t *Tx) getId(){
+func (t *Tx) getId() {
 	t.ID = utils.Hash(t)
 }
 
@@ -83,8 +83,8 @@ func validate(tx *Tx) bool {
 
 func isOnMempool(uTxOut *UTxOut) bool {
 	exists := false
-	Outer: 
-	for _, tx := range Mempool().Txs{
+Outer:
+	for _, tx := range Mempool().Txs {
 		for _, input := range tx.TxIns {
 			if input.TxID == uTxOut.TxID && input.Index == uTxOut.Index {
 				exists = true
@@ -97,16 +97,16 @@ func isOnMempool(uTxOut *UTxOut) bool {
 
 func makeCoinbaseTx(address string) *Tx {
 	txIns := []*TxIn{
-		{"", -1,  "COINBASE"},
+		{"", -1, "COINBASE"},
 	}
 	txOuts := []*TxOut{
 		{address, minerReward},
 	}
 	tx := Tx{
-		ID: "",
+		ID:        "",
 		Timestamp: int(time.Now().Unix()),
-		TxIns: txIns,
-		TxOuts: txOuts,
+		TxIns:     txIns,
+		TxOuts:    txOuts,
 	}
 	tx.getId()
 	return &tx
@@ -125,7 +125,7 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 	uTxOuts := UTxOutsByAddress(from, Blockchain())
 	for _, uTxOut := range uTxOuts {
 		if total >= amount {
-			break;
+			break
 		}
 		txIn := &TxIn{uTxOut.TxID, uTxOut.Index, ""}
 		txIns = append(txIns, txIn)
@@ -138,10 +138,10 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 	txOut := &TxOut{to, amount}
 	txOuts = append(txOuts, txOut)
 	tx := &Tx{
-		ID: "",
+		ID:        "",
 		Timestamp: int(time.Now().Unix()),
-		TxIns: txIns,
-		TxOuts: txOuts,
+		TxIns:     txIns,
+		TxOuts:    txOuts,
 	}
 	tx.getId()
 	tx.sign()

@@ -13,27 +13,27 @@ type MessageKind int
 
 const (
 	MessageNewestBlock MessageKind = iota
-	MessageAllBlocksRequest 
-	MessageAllBlocksResponse 
+	MessageAllBlocksRequest
+	MessageAllBlocksResponse
 	MessageNewBlockNotify
 	MessageNewTxNotify
 	MessageNewPeerNotify
 )
 
 type Message struct {
-	Kind MessageKind
+	Kind    MessageKind
 	Payload []byte
 }
 
 func makeMessage(kind MessageKind, payload interface{}) []byte {
-	m := Message {
-		Kind: kind,
+	m := Message{
+		Kind:    kind,
 		Payload: utils.ToJSON(payload),
 	}
 	return utils.ToJSON(m)
 }
 
-func sendNewestBlock(p *peer){
+func sendNewestBlock(p *peer) {
 	fmt.Printf("Sending newest block to %s\n", p.key)
 	b, err := blockchain.FindBlock(blockchain.Blockchain().NewestHash)
 	utils.HandleErr(err)
@@ -52,17 +52,17 @@ func sendAllBlocks(p *peer) {
 	p.inbox <- m
 }
 
-func notifyNewBlock(b *blockchain.Block, p *peer){
+func notifyNewBlock(b *blockchain.Block, p *peer) {
 	m := makeMessage(MessageNewBlockNotify, b)
 	p.inbox <- m
 }
 
-func notifyNewTx(tx *blockchain.Tx, p *peer){
+func notifyNewTx(tx *blockchain.Tx, p *peer) {
 	m := makeMessage(MessageNewTxNotify, tx)
 	p.inbox <- m
 }
 
-func notifyNewPeer(address string, p *peer){
+func notifyNewPeer(address string, p *peer) {
 	m := makeMessage(MessageNewPeerNotify, address)
 	p.inbox <- m
 }
@@ -75,7 +75,7 @@ func handleMsg(m *Message, p *peer) {
 		utils.HandleErr(json.Unmarshal(m.Payload, &payload))
 		b, err := blockchain.FindBlock(blockchain.Blockchain().NewestHash)
 		utils.HandleErr(err)
-		if payload.Height >= b.Height{
+		if payload.Height >= b.Height {
 			fmt.Printf("Requesting all blocks from %s\n", p.key)
 			requestAllBlocks(p)
 		} else {
@@ -98,7 +98,7 @@ func handleMsg(m *Message, p *peer) {
 		var payload *blockchain.Tx
 		utils.HandleErr(json.Unmarshal(m.Payload, &payload))
 		blockchain.Mempool().AddPeerTx(payload)
-	case MessageNewPeerNotify :
+	case MessageNewPeerNotify:
 		var payload string
 		utils.HandleErr(json.Unmarshal(m.Payload, &payload))
 		parts := strings.Split(payload, ":")

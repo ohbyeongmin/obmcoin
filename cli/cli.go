@@ -10,14 +10,13 @@ import (
 	"github.com/ohbyeongmin/obmcoin/rest"
 )
 
-func usage(){
+func usage() {
 	fmt.Printf("Welcome to 오병민 코인\n\n")
 	fmt.Printf("Please use the following flags:\n\n")
 	fmt.Printf("-port:   	Set the PORT of the server\n")
 	fmt.Printf("-mode:   	Choose between 'html' and 'rest' or 'all'\n\n")
 	runtime.Goexit()
 }
-
 
 func Start() {
 	if len(os.Args) == 1 {
